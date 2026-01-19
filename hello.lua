@@ -1,54 +1,64 @@
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = game.Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- ========================================================
--- 1. CONFIGURATION: THE MAGIC NUMBER
+-- 1. CONFIGURATION: THE TIMING
 -- ========================================================
--- Try -10000 first (Negative). This attempts to refund money.
--- If this makes you walk backwards, change it to 99999 (Positive) to get super speed.
-local AMOUNT_TO_HACK = -10000
+-- How long to wait after Gifting before crashing?
+-- 0.05 = Very Fast (Might crash before gift sends)
+-- 0.50 = Medium (Good starting point)
+-- 1.00 = Slow (Might save data too fast)
+local CRASH_DELAY = 0.5 
 
 -- ========================================================
--- 2. THE EXPLOIT
+-- 2. THE TRAP (Silent Listener)
 -- ========================================================
-local targetRemote = nil
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
 
--- Find the remote automatically
-for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-    if v.Name == "UpgradeSpeed" then
-        targetRemote = v
-        print("✅ FOUND REMOTE: " .. v:GetFullName())
-        break
+local isArmed = true
+
+print("------------------------------------------------")
+print("💣 DUPE TRAP ARMED")
+print("   > Waiting for you to gift...")
+print("   > Will kick you in " .. CRASH_DELAY .. " seconds after gifting.")
+print("------------------------------------------------")
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    -- We listen for the Gift Signal (Same name we found earlier)
+    if isArmed and (method == "FireServer" or method == "InvokeServer") and 
+       (self.Name == "SendGift" or self.Name == "RF/Trade.SendGift") then
+        
+        -- 1. DETECT THE GIFT
+        print("🚨 GIFT SIGNAL DETECTED! INITIATING CRASH...")
+        
+        -- 2. START THE COUNTDOWN (In a separate thread so we don't block the gift)
+        task.spawn(function()
+            local startTime = tick()
+            
+            -- Wait the specific amount of time
+            while tick() - startTime < CRASH_DELAY do
+                task.wait()
+            end
+            
+            -- 3. THE CRASH
+            player:Kick("🔌 DUPE LAG SWITCH: DISCONNECTED! Check Alt.")
+        end)
+        
+        -- 4. LET THE GIFT GO THROUGH (Crucial!)
+        -- We return the original function so the server receives the gift request
+        return oldNamecall(self, ...)
     end
-end
 
-if targetRemote then
-    local msg = Instance.new("Message", workspace)
-    msg.Text = "SENDING HACK: " .. AMOUNT_TO_HACK
-    task.wait(2)
-    msg:Destroy()
+    return oldNamecall(self, ...)
+end)
 
-    print("------------------------------------------------")
-    print("🚀 INJECTING VALUE: " .. AMOUNT_TO_HACK)
-    print("------------------------------------------------")
-
-    -- Fire the signal 5 times to make sure it hits hard
-    for i = 1, 5 do
-        if targetRemote:IsA("RemoteFunction") then
-            targetRemote:InvokeServer(AMOUNT_TO_HACK)
-        elseif targetRemote:IsA("RemoteEvent") then
-            targetRemote:FireServer(AMOUNT_TO_HACK)
-        end
-        task.wait(0.1)
-    end
-    
-    local hint = Instance.new("Hint", workspace)
-    hint.Text = "PAYLOAD SENT! Check your Cash & Speed."
-    task.wait(5)
-    hint:Destroy()
-else
-    local err = Instance.new("Message", workspace)
-    err.Text = "ERROR: Could not find 'UpgradeSpeed' remote."
-    task.wait(3)
-    err:Destroy()
-end
+-- Visual Confirmation
+local msg = Instance.new("Message", workspace)
+msg.Text = "DUPE READY! Gift your alt to trigger the crash."
+task.wait(3)
+msg:Destroy()
