@@ -8,7 +8,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 -- 0.05 = Very Fast (Might crash before gift sends)
 -- 0.50 = Medium (Good starting point)
 -- 1.00 = Slow (Might save data too fast)
-local CRASH_DELAY = 0.1 
+local CRASH_DELAY = 0.3
 
 -- ========================================================
 -- 2. THE TRAP (Silent Listener)
