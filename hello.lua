@@ -1,52 +1,41 @@
 local player = game.Players.LocalPlayer
-local pGui = player:WaitForChild("PlayerGui")
+local backpack = player:WaitForChild("Backpack")
 
--- 1. Create the Black Spy Screen
-local screen = Instance.new("ScreenGui")
-screen.Name = "SpyScreen_V2"
-screen.Parent = pGui
+-- 1. The Target Name (Must match the Index EXACTLY)
+local FAKE_NAME = "Esok Sekolah"
 
-local frame = Instance.new("ScrollingFrame")
-frame.Size = UDim2.new(0.6, 0, 0.3, 0) -- Bigger box
-frame.Position = UDim2.new(0.2, 0, 0.1, 0)
-frame.BackgroundColor3 = Color3.new(0, 0, 0)
-frame.BackgroundTransparency = 0.3
-frame.CanvasSize = UDim2.new(0, 0, 10, 0)
-frame.Parent = screen
-
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "DEEP SCAN SPY (Click the UI!)"
-title.TextColor3 = Color3.new(1, 0, 0)
-title.Parent = frame
-
--- 2. The Hook (The hacking part)
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-
-local logCount = 0
-
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- We now check for BOTH types of signals
-    if method == "FireServer" or method == "InvokeServer" then
-        logCount = logCount + 1
+local function overwriteTool(tool)
+    if tool:IsA("Tool") then
+        -- Wait for the game to finish giving you the original item
+        task.wait(0.1)
         
-        local log = Instance.new("TextLabel")
-        log.Size = UDim2.new(1, 0, 0, 40)
-        log.Position = UDim2.new(0, 0, 0, 30 + (logCount * 40))
-        log.TextColor3 = Color3.new(0, 1, 0) -- Green Text
-        log.BackgroundTransparency = 1
-        log.TextXAlignment = Enum.TextXAlignment.Left
-        log.TextSize = 12
+        -- 2. Rename the Item
+        -- If the developer is lazy, he just checks this Name when you sell.
+        print("😈 SWAPPING ITEM: " .. tool.Name .. " -> " .. FAKE_NAME)
+        tool.Name = FAKE_NAME
         
-        -- Print the Remote Name and the Arguments
-        log.Text = logCount..". " .. self.Name .. " (" .. method .. ") | Args: " .. tostring(args[1])
-        log.Parent = frame
+        -- 3. Extra Trick: Rename the 'Handle' just in case
+        local handle = tool:FindFirstChild("Handle")
+        if handle then
+            handle.Name = "Handle" -- Keep this standard, or change if needed
+        end
+        
+        -- 4. Value Spoofing (If the item has a price tag inside)
+        -- We look for any "NumberValue" inside the tool and set it to 1 million
+        for _, child in pairs(tool:GetChildren()) do
+            if child:IsA("NumberValue") or child:IsA("IntValue") then
+                child.Value = 999999999
+            end
+        end
     end
+end
 
-    return oldNamecall(self, ...)
-end)
+-- Listen for new items entering your inventory
+backpack.ChildAdded:Connect(overwriteTool)
+player.Character.ChildAdded:Connect(overwriteTool)
+
+-- Notify you
+local msg = Instance.new("Message", workspace)
+msg.Text = "TARGET SET: " .. FAKE_NAME
+task.wait(3)
+msg:Destroy()
