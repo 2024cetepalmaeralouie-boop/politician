@@ -2,63 +2,66 @@ local player = game.Players.LocalPlayer
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 -- ========================================================
--- 1. CONFIGURATION: THE TIMING
+-- CONFIGURATION
 -- ========================================================
--- How long to wait after Gifting before crashing?
--- 0.05 = Very Fast (Might crash before gift sends)
--- 0.50 = Medium (Good starting point)
--- 1.00 = Slow (Might save data too fast)
-local CRASH_DELAY = 0.3
+local TARGET_PLAYER = "LouieG18" -- <--- PUT YOUR MAIN NAME HERE
+local GIFT_DELAY = 1.5                     -- <--- Seconds to wait between gifts
 
 -- ========================================================
--- 2. THE TRAP (Silent Listener)
+-- THE SCRIPT
 -- ========================================================
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
+local giftRemote = nil
 
-local isArmed = true
-
-print("------------------------------------------------")
-print("💣 DUPE TRAP ARMED")
-print("   > Waiting for you to gift...")
-print("   > Will kick you in " .. CRASH_DELAY .. " seconds after gifting.")
-print("------------------------------------------------")
-
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- We listen for the Gift Signal (Same name we found earlier)
-    if isArmed and (method == "FireServer" or method == "InvokeServer") and 
-       (self.Name == "SendGift" or self.Name == "RF/Trade.SendGift") then
-        
-        -- 1. DETECT THE GIFT
-        print("🚨 GIFT SIGNAL DETECTED! INITIATING CRASH...")
-        
-        -- 2. START THE COUNTDOWN (In a separate thread so we don't block the gift)
-        task.spawn(function()
-            local startTime = tick()
-            
-            -- Wait the specific amount of time
-            while tick() - startTime < CRASH_DELAY do
-                task.wait()
-            end
-            
-            -- 3. THE CRASH
-            player:Kick("🔌 DUPE LAG SWITCH: DISCONNECTED! Check Alt.")
-        end)
-        
-        -- 4. LET THE GIFT GO THROUGH (Crucial!)
-        -- We return the original function so the server receives the gift request
-        return oldNamecall(self, ...)
+-- Find remote automatically
+for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+    if v.Name == "SendGift" or v.Name == "RF/Trade.SendGift" then
+        giftRemote = v
+        break
     end
+end
 
-    return oldNamecall(self, ...)
+if not giftRemote then return end
+
+-- GUI Toggle
+local screen = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+local btn = Instance.new("TextButton", screen)
+btn.Size = UDim2.new(0, 200, 0, 50)
+btn.Position = UDim2.new(0.5, -100, 0.2, 0)
+btn.Text = "AUTO-GIFT: OFF"
+btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+
+local active = false
+
+btn.MouseButton1Click:Connect(function()
+    active = not active
+    if active then
+        btn.Text = "GIFTING HELD ITEM..."
+        btn.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+        
+        task.spawn(function()
+            while active do
+                local char = player.Character
+                if char then
+                    -- 1. Check if holding an item
+                    local tool = char:FindFirstChildWhichIsA("Tool")
+                    
+                    if tool then
+                        -- 2. Gift it
+                        if giftRemote:IsA("RemoteFunction") then
+                            giftRemote:InvokeServer(TARGET_PLAYER, tool.Name)
+                        else
+                            giftRemote:FireServer(TARGET_PLAYER, tool.Name)
+                        end
+                        
+                        -- 3. Wait cooldown
+                        task.wait(GIFT_DELAY)
+                    end
+                end
+                task.wait(0.2) -- Check hand every 0.2 seconds
+            end
+        end)
+    else
+        btn.Text = "AUTO-GIFT: OFF"
+        btn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+    end
 end)
-
--- Visual Confirmation
-local msg = Instance.new("Message", workspace)
-msg.Text = "DUPE READY! Gift your alt to trigger the crash."
-task.wait(3)
-msg:Destroy()
