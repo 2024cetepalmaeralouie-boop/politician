@@ -1,6 +1,13 @@
-local msg = Instance.new("Message")
-msg.Parent = game.Workspace
-msg.Text = "SUCCESS! The Executor loaded this from GitHub!"
+local floor = workspace:FindFirstChild("Baseplate") or workspace:FindFirstChild("BasePlate")
 
-task.wait(3)
-msg:Destroy()
+if floor then
+    floor:Destroy()
+    
+    local msg = Instance.new("Message")
+    msg.Parent = workspace
+    msg.Text = "I DELETED THE FLOOR!"
+    task.wait(3)
+    msg:Destroy()
+else
+    print("Could not find floor to delete.")
+end
