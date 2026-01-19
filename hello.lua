@@ -1,60 +1,72 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = game.Players.LocalPlayer
-local pGui = player:WaitForChild("PlayerGui")
 
--- 1. Create the Spy Screen
-local screen = Instance.new("ScreenGui")
-screen.Name = "GiftSpy"
-screen.Parent = pGui
+-- ==========================================
+-- 1. CONFIGURATION (EDIT THIS!)
+-- ==========================================
 
-local frame = Instance.new("ScrollingFrame")
-frame.Size = UDim2.new(0.8, 0, 0.4, 0) -- Big box
-frame.Position = UDim2.new(0.1, 0, 0.1, 0)
-frame.BackgroundColor3 = Color3.new(0, 0, 0)
-frame.BackgroundTransparency = 0.5
-frame.CanvasSize = UDim2.new(0, 0, 10, 0)
-frame.Parent = screen
+-- Put your friend's username here
+local FRIEND_NAME = "LouieG18" 
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "GIFT SPY: Send a gift to someone!"
-title.TextColor3 = Color3.new(1, 1, 0)
-title.Parent = frame
+-- Put the WEIRD CODE you saw on the screen here. 
+-- (Type it exactly as you see it on your loading screen)
+local UUID_CODE = "bab13f04-64c5-4ab3-a5b8-cfee12ccec8e" -- <--- REPLACE THIS WITH THE FULL CODE
 
--- 2. The Trap
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
+-- ==========================================
+-- 2. THE SCRIPT
+-- ==========================================
 
-local logCount = 0
+local giftRemote = nil
 
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
+-- Find the remote automatically (using the name you found earlier)
+for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+    if v.Name == "SendGift" or v.Name == "RF/Trade.SendGift" then
+        giftRemote = v
+        print("✅ FOUND REMOTE: " .. v:GetFullName())
+        break
+    end
+end
 
-    -- We look for ANY signal that sends a "String" (Text)
-    -- This helps us catch the Item Name or Player Name
-    if method == "FireServer" or method == "InvokeServer" then
-        
-        -- Filter: Only show remotes that might be Gifting
-        -- We look for common words like "Gift", "Send", "Trade", or the Item Name
-        local remoteName = string.lower(self.Name)
-        local argsString = tostring(args[1]) .. ", " .. tostring(args[2])
-        
-        -- (If you don't know the exact remote name, we print almost everything relevant)
-        if string.find(remoteName, "gift") or string.find(remoteName, "send") or string.find(remoteName, "event") then
-             logCount = logCount + 1
-            
-            local log = Instance.new("TextLabel")
-            log.Size = UDim2.new(1, 0, 0, 60)
-            log.Position = UDim2.new(0, 0, 0, 30 + (logCount * 60))
-            log.TextColor3 = Color3.new(1, 1, 1)
-            log.TextWrapped = true
-            log.Text = logCount..". " .. self.Name .. "\nARGS: " .. argsString
-            log.Parent = frame
-            
-            print("CAPTURED: " .. self.Name .. " | " .. argsString)
+if giftRemote then
+    -- Notify
+    local msg = Instance.new("Message", workspace)
+    msg.Text = "SENDING UUID GIFT..."
+    task.wait(2)
+    msg:Destroy()
+
+    print("------------------------------------------------")
+    print("🚀 LAUNCHING PAYLOAD")
+    print("📦 TARGET: " .. FRIEND_NAME)
+    print("🔑 UUID: " .. UUID_CODE)
+    print("------------------------------------------------")
+
+    -- Try to FIRE the remote with the UUID
+    -- We try both Invoke and Fire to be safe
+    local success, err = pcall(function()
+        if giftRemote:IsA("RemoteFunction") then
+            giftRemote:InvokeServer(FRIEND_NAME, UUID_CODE)
+        elseif giftRemote:IsA("RemoteEvent") then
+            giftRemote:FireServer(FRIEND_NAME, UUID_CODE)
         end
+    end)
+
+    if success then
+        print("✅ SIGNAL SENT SUCCESSFULLY!")
+        local hint = Instance.new("Hint", workspace)
+        hint.Text = "SIGNAL SENT! Check if friend got the item."
+        task.wait(5)
+        hint:Destroy()
+    else
+        warn("❌ FAILED TO SEND: " .. tostring(err))
+        local hint = Instance.new("Hint", workspace)
+        hint.Text = "ERROR: " .. tostring(err)
+        task.wait(5)
+        hint:Destroy()
     end
 
-    return oldNamecall(self, ...)
-end)
+else
+    local err = Instance.new("Message", workspace)
+    err.Text = "ERROR: Could not find 'RF/Trade.SendGift'"
+    task.wait(3)
+    err:Destroy()
+end
