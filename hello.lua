@@ -1,41 +1,37 @@
 local player = game.Players.LocalPlayer
-local backpack = player:WaitForChild("Backpack")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- 1. The Target Name (Must match the Index EXACTLY)
-local FAKE_NAME = "Esok Sekolah"
+-- 1. Setup the Spy
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
 
-local function overwriteTool(tool)
-    if tool:IsA("Tool") then
-        -- Wait for the game to finish giving you the original item
-        task.wait(0.1)
-        
-        -- 2. Rename the Item
-        -- If the developer is lazy, he just checks this Name when you sell.
-        print("😈 SWAPPING ITEM: " .. tool.Name .. " -> " .. FAKE_NAME)
-        tool.Name = FAKE_NAME
-        
-        -- 3. Extra Trick: Rename the 'Handle' just in case
-        local handle = tool:FindFirstChild("Handle")
-        if handle then
-            handle.Name = "Handle" -- Keep this standard, or change if needed
-        end
-        
-        -- 4. Value Spoofing (If the item has a price tag inside)
-        -- We look for any "NumberValue" inside the tool and set it to 1 million
-        for _, child in pairs(tool:GetChildren()) do
-            if child:IsA("NumberValue") or child:IsA("IntValue") then
-                child.Value = 999999999
-            end
+local isScanning = true
+
+-- 2. GUI Notification
+local msg = Instance.new("Message", workspace)
+msg.Text = "GO TOUCH THE FINISH LINE NOW!"
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+
+    if isScanning and (method == "FireServer" or method == "InvokeServer") then
+        -- We ignore common movement signals to reduce spam
+        if self.Name ~= "UpdateCharacter" and self.Name ~= "TouchInterest" then
+            
+            -- 3. Print the "Secret Code"
+            print("🚨 CAUGHT SIGNAL: " .. self.Name)
+            print("   TYPE: " .. method)
+            print("   ARGS: " .. tostring(args[1]) .. ", " .. tostring(args[2]))
+            
+            -- Create a visual alert on screen
+            local alert = Instance.new("Hint", workspace)
+            alert.Text = "CAPTURED: " .. self.Name .. " | Args: " .. tostring(args[1])
+            task.wait(5)
+            alert:Destroy()
         end
     end
-end
 
--- Listen for new items entering your inventory
-backpack.ChildAdded:Connect(overwriteTool)
-player.Character.ChildAdded:Connect(overwriteTool)
-
--- Notify you
-local msg = Instance.new("Message", workspace)
-msg.Text = "TARGET SET: " .. FAKE_NAME
-task.wait(3)
-msg:Destroy()
+    return oldNamecall(self, ...)
+end)
