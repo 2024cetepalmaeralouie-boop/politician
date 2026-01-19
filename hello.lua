@@ -1,60 +1,54 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local player = game.Players.LocalPlayer
-local pGui = player:WaitForChild("PlayerGui")
 
--- 1. VISUAL LOGGER (So you can see it on screen)
-local screen = Instance.new("ScreenGui")
-screen.Name = "ShopSpy"
-screen.Parent = pGui
+-- ========================================================
+-- 1. CONFIGURATION: THE MAGIC NUMBER
+-- ========================================================
+-- Try -10000 first (Negative). This attempts to refund money.
+-- If this makes you walk backwards, change it to 99999 (Positive) to get super speed.
+local AMOUNT_TO_HACK = -10000
 
-local frame = Instance.new("ScrollingFrame")
-frame.Size = UDim2.new(0.6, 0, 0.4, 0)
-frame.Position = UDim2.new(0.2, 0, 0.1, 0)
-frame.BackgroundColor3 = Color3.new(0, 0, 0)
-frame.BackgroundTransparency = 0.3
-frame.CanvasSize = UDim2.new(0, 0, 10, 0)
-frame.Parent = screen
+-- ========================================================
+-- 2. THE EXPLOIT
+-- ========================================================
+local targetRemote = nil
 
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "SHOP SPY: Go buy an upgrade!"
-title.TextColor3 = Color3.new(0, 1, 0)
-title.Parent = frame
-
--- 2. THE SPY
-local mt = getrawmetatable(game)
-local oldNamecall = mt.__namecall
-setreadonly(mt, false)
-
-local logCount = 0
-
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-
-    -- Watch for any Remote Signal
-    if method == "FireServer" or method == "InvokeServer" then
-        
-        -- Filter out movement spam
-        if self.Name ~= "UpdateCharacter" and self.Name ~= "TouchInterest" and self.Name ~= "CharacterSoundEvent" then
-            
-            logCount = logCount + 1
-            local argsText = ""
-            for i, v in pairs(args) do
-                argsText = argsText .. tostring(v) .. ", "
-            end
-            
-            -- Create log on screen
-            local log = Instance.new("TextLabel")
-            log.Size = UDim2.new(1, 0, 0, 50)
-            log.Position = UDim2.new(0, 0, 0, 30 + (logCount * 50))
-            log.TextColor3 = Color3.new(1, 1, 1)
-            log.TextWrapped = true
-            log.Text = logCount..". " .. self.Name .. " | ARGS: " .. argsText
-            log.Parent = frame
-            
-            print("CAPTURED: " .. self.Name .. " | " .. argsText)
-        end
+-- Find the remote automatically
+for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+    if v.Name == "UpgradeSpeed" then
+        targetRemote = v
+        print("✅ FOUND REMOTE: " .. v:GetFullName())
+        break
     end
+end
 
-    return oldNamecall(self, ...)
-end)
+if targetRemote then
+    local msg = Instance.new("Message", workspace)
+    msg.Text = "SENDING HACK: " .. AMOUNT_TO_HACK
+    task.wait(2)
+    msg:Destroy()
+
+    print("------------------------------------------------")
+    print("🚀 INJECTING VALUE: " .. AMOUNT_TO_HACK)
+    print("------------------------------------------------")
+
+    -- Fire the signal 5 times to make sure it hits hard
+    for i = 1, 5 do
+        if targetRemote:IsA("RemoteFunction") then
+            targetRemote:InvokeServer(AMOUNT_TO_HACK)
+        elseif targetRemote:IsA("RemoteEvent") then
+            targetRemote:FireServer(AMOUNT_TO_HACK)
+        end
+        task.wait(0.1)
+    end
+    
+    local hint = Instance.new("Hint", workspace)
+    hint.Text = "PAYLOAD SENT! Check your Cash & Speed."
+    task.wait(5)
+    hint:Destroy()
+else
+    local err = Instance.new("Message", workspace)
+    err.Text = "ERROR: Could not find 'UpgradeSpeed' remote."
+    task.wait(3)
+    err:Destroy()
+end
