@@ -1,72 +1,61 @@
--- DELTA EXECUTOR OPTIMIZED REMOTE SPY
+-- DELTA SPY: NO AUTO-SCROLL + NO BLANK ROWS
 local player = game.Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local pGui = player:WaitForChild("PlayerGui")
 
--- 1. DELETE OLD VERSION
-if PlayerGui:FindFirstChild("DeltaSpy") then PlayerGui.DeltaSpy:Destroy() end
+if pGui:FindFirstChild("SpyX") then pGui.SpyX:Destroy() end
+local sg = Instance.new("ScreenGui", pGui)
+sg.Name = "SpyX"
 
--- 2. UI SETUP
-local sg = Instance.new("ScreenGui", PlayerGui)
-sg.Name = "DeltaSpy"
-sg.ResetOnSpawn = false
+-- 1. THE MAIN CONTAINER
+local f = Instance.new("Frame", sg)
+f.Size = UDim2.new(0, 300, 0, 200)
+f.Position = UDim2.new(0.5, -150, 0.2, 0)
+f.BackgroundColor3 = Color3.new(0, 0, 0)
+f.Active = true
+f.Draggable = true
 
-local frame = Instance.new("Frame", sg)
-frame.Size = UDim2.new(0, 220, 0, 180)
-frame.Position = UDim2.new(0.5, -110, 0.05, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-frame.BorderSizePixel = 2
-frame.Active = true
-frame.Draggable = true
+-- 2. SCROLLING AREA (Horizontal + Manual Scroll only)
+local s = Instance.new("ScrollingFrame", f)
+s.Size = UDim2.new(1, 0, 1, 0)
+s.CanvasSize = UDim2.new(4, 0, 0, 0) -- Starts with 0 vertical height
+s.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+s.ScrollBarThickness = 8
+s.AutomaticCanvasSize = Enum.AutomaticSize.Y -- Only grows when a row is added
 
-local scroll = Instance.new("ScrollingFrame", frame)
-scroll.Size = UDim2.new(1, 0, 1, -25)
-scroll.Position = UDim2.new(0, 0, 0, 25)
-scroll.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-scroll.CanvasSize = UDim2.new(0, 0, 50, 0)
+local l = Instance.new("UIListLayout", s)
+l.SortOrder = Enum.SortOrder.LayoutOrder
 
-local layout = Instance.new("UIListLayout", scroll)
-layout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1, 0, 0, 25)
-title.Text = "DELTA REMOTE SNIFFER"
-title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-title.TextColor3 = Color3.new(1, 1, 1)
-title.TextSize = 14
-
--- 3. LOGGING
-local function addLog(txt)
-    local l = Instance.new("TextLabel", scroll)
-    l.Size = UDim2.new(1, 0, 0, 25)
-    l.Text = txt
-    l.TextColor3 = Color3.fromRGB(0, 255, 150)
-    l.BackgroundTransparency = 1
-    l.TextSize = 10
-    l.TextXAlignment = Enum.TextXAlignment.Left
-    scroll.CanvasPosition = Vector2.new(0, scroll.AbsoluteCanvasSize.Y)
+-- 3. LOGGING FUNCTION
+local function log(t)
+    local txt = Instance.new("TextLabel", s)
+    txt.Size = UDim2.new(1, 0, 0, 25) -- Fixed height per row
+    txt.Text = t
+    txt.TextColor3 = Color3.fromRGB(0, 255, 150)
+    txt.BackgroundTransparency = 1
+    txt.TextSize = 12
+    txt.TextXAlignment = Enum.TextXAlignment.Left
+    txt.Font = Enum.Font.Code
+    -- We REMOVED the line that forces CanvasPosition to the bottom
 end
 
--- 4. THE ENGINE (Delta Compatible)
+-- 4. THE ENGINE
 local mt = getrawmetatable(game)
-local old = mt.__namecall
-if setreadonly then setreadonly(mt, false) else make_writeable(mt) end
+local old = mt.__index
+setreadonly(mt, false)
 
-mt.__namecall = newcclosure(function(self, ...)
-    local method = getnamecallmethod()
-    local args = {...}
-    
-    if method == "FireServer" or method == "InvokeServer" then
-        local remoteName = tostring(self.Name)
-        -- Filter out the "noise" so Delta doesn't lag
-        if not remoteName:find("Move") and not remoteName:find("Ping") and not remoteName:find("Physics") then
-            local argString = ""
+mt.__index = newcclosure(function(t, k)
+    if k == "FireServer" or k == "InvokeServer" then
+        return function(self, ...)
+            local args = {...}
+            local argStr = ""
             for i, v in pairs(args) do
-                argString = argString .. tostring(v) .. " "
+                argStr = argStr .. "[" .. i .. "]: " .. tostring(v) .. " | "
             end
-            addLog("> " .. remoteName .. ": " .. argString)
+            log("📡 " .. tostring(self.Name) .. " -> " .. argStr)
+            return self[k](self, ...)
         end
     end
-    return old(self, ...)
+    return old(t, k)
 end)
 
-addLog("System: Delta Spy Loaded!")
+-- No "Ready" message to keep it clean
