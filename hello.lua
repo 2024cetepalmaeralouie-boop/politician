@@ -1,31 +1,50 @@
--- MOBILE SECURITY SCANNER (FORCE UI FIX)
+-- ULTIMATE MOBILE REMOTE SPY
 local player = game.Players.LocalPlayer
 local PlayerGui = player:WaitForChild("PlayerGui")
 
--- 1. CLEAN UP OLD UI (In case you ran it twice)
-if PlayerGui:FindFirstChild("MobileScannerGui") then
-    PlayerGui.MobileScannerGui:Destroy()
+-- 1. UI SETUP (Mobile Optimized)
+local screen = Instance.new("ScreenGui", PlayerGui)
+screen.Name = "MobileSpyGui"
+screen.ResetOnSpawn = false
+screen.DisplayOrder = 999
+
+-- Main Window
+local main = Instance.new("Frame", screen)
+main.Size = UDim2.new(0, 250, 0, 300)
+main.Position = UDim2.new(0.5, -125, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+main.Active = true
+main.Draggable = true -- Move it with your thumb
+
+-- Title
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "📡 REMOTE SPY LOGS"
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.new(1, 1, 1)
+
+-- Scrollable Area for Logs
+local scroll = Instance.new("ScrollingFrame", main)
+scroll.Size = UDim2.new(1, -10, 1, -40)
+scroll.Position = UDim2.new(0, 5, 0, 35)
+scroll.BackgroundTransparency = 1
+scroll.CanvasSize = UDim2.new(0, 0, 10, 0) -- Long enough for many logs
+local layout = Instance.new("UIListLayout", scroll)
+layout.Padding =指导 = UDim.new(0, 5)
+
+-- 2. LOGGING FUNCTION
+local function addLog(text)
+    local log = Instance.new("TextLabel", scroll)
+    log.Size = UDim2.new(1, 0, 0, 40)
+    log.Text = text
+    log.TextColor3 = Color3.new(0, 1, 0) -- Green text
+    log.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    log.TextWrapped = true
+    log.TextSize = 12
+    scroll.CanvasPosition = Vector2.new(0, scroll.AbsoluteCanvasSize.Y) -- Auto scroll
 end
 
--- 2. THE UI SETUP
-local screen = Instance.new("ScreenGui", PlayerGui)
-screen.Name = "MobileScannerGui"
-screen.ResetOnSpawn = false
-screen.DisplayOrder = 999 -- Keeps it above game buttons
-screen.IgnoreGuiInset = true -- Uses the whole screen space
-
-local toggleBtn = Instance.new("TextButton", screen)
-toggleBtn.Size = UDim2.new(0, 180, 0, 70) -- Bigger for thumbs
-toggleBtn.Position = UDim2.new(0.5, -90, 0.2, 0) -- Top middle
-toggleBtn.Text = "SCANNER: OFF"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.Font = Enum.Font.Code
-toggleBtn.TextSize = 18
-toggleBtn.ZIndex = 10 -- Force to front
-
--- 3. THE SCANNER LOGIC
-local active = false
+-- 3. THE SNIFFER ENGINE
 local mt = getrawmetatable(game)
 local oldNamecall = mt.__namecall
 setreadonly(mt, false)
@@ -34,28 +53,18 @@ mt.__namecall = newcclosure(function(self, ...)
     local method = getnamecallmethod()
     local args = {...}
 
-    if active and (method == "FireServer" or method == "InvokeServer") then
+    if method == "FireServer" or method == "InvokeServer" then
         local name = tostring(self.Name)
+        -- Filter out the noise
         if not name:find("Move") and not name:find("Ping") then
-            warn("📡 DETECTED: " .. name)
+            local data = name .. " | Args: "
             for i, v in pairs(args) do
-                print("   [" .. i .. "]: " .. tostring(v))
+                data = data .. "[" .. i .. "]:" .. tostring(v) .. " "
             end
+            addLog(data)
         end
     end
     return oldNamecall(self, ...)
 end)
 
--- 4. TOGGLE BUTTON FUNCTION
-toggleBtn.MouseButton1Click:Connect(function()
-    active = not active
-    if active then
-        toggleBtn.Text = "SCANNER: ON"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 180, 0)
-    else
-        toggleBtn.Text = "SCANNER: OFF"
-        toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
-    end
-end)
-
-print("🛡️ MOBILE UI LOADED - Check Top of Screen")
+addLog("System: Spy Active. Perform an action!")
