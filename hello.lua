@@ -1,35 +1,36 @@
--- DIRECT REMOTE LISTENER (No UI, Console Only)
-print("--- STARTING DIRECT SCAN ---")
+-- JUNKYARD SECURITY AUDIT: ATTRIBUTE SPOOFER
+print("--- ATTRIBUTE SPOOFER ACTIVE ---")
 
-local function connectRemote(remote)
-    if remote:IsA("RemoteEvent") then
-        remote.OnClientEvent:Connect(function(...)
-            print("📩 RECEIVED FROM SERVER [" .. remote.Name .. "]:", ...)
-        end)
+local Player = game.Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+
+local function hijackButton(button)
+    button.MouseButton1Down:Connect(function()
+        print("MODIFING ATTRIBUTES FOR: " .. button.Name)
         
-        -- This part attempts to spy on what YOU send
-        local oldFire = remote.FireServer
-        remote.FireServer = function(self, ...)
-            print("🔥 YOU SENT TO SERVER [" .. remote.Name .. "]:")
-            local args = {...}
-            for i, v in pairs(args) do
-                print("   Arg " .. i .. ": " .. tostring(v))
-            end
-            return oldFire(self, ...)
+        -- Try to find and change common price/value attributes
+        if button:GetAttribute("Price") then
+            button:SetAttribute("Price", 0)
+            print("Set Price to 0!")
         end
+        
+        if button:GetAttribute("Cost") then
+            button:SetAttribute("Cost", 0)
+            print("Set Cost to 0!")
+        end
+
+        if button:GetAttribute("Value") then
+            button:SetAttribute("Value", 999999)
+            print("Set Sell Value to 999,999!")
+        end
+    end)
+end
+
+-- Scan UI for buttons
+for _, v in pairs(PlayerGui:GetDescendants()) do
+    if v:IsA("TextButton") or v:IsA("ImageButton") then
+        hijackButton(v)
     end
 end
 
--- Scan everything currently in the game
-for _, item in pairs(game:GetDescendants()) do
-    if item:IsA("RemoteEvent") or item:IsA("RemoteFunction") then
-        connectRemote(item)
-    end
-end
-
--- Watch for new Remotes being added (like when a shop opens)
-game.DescendantAdded:Connect(function(item)
-    connectRemote(item)
-end)
-
-print("--- SCAN COMPLETE: CLICK BUY NOW ---")
+print("Done. Try buying or selling a car now!")
